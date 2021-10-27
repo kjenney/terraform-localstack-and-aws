@@ -1,6 +1,6 @@
 # terraform-localstack-and-aws
 
-Running LocalStack against the same Infrastructure that is deployed to AWS
+Running LocalStack against the same Terraform code that is deployed to AWS
 
 My use case:
 * An AWS account provisioned with Terraform
