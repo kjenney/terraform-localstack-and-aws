@@ -35,6 +35,9 @@ I would not recommend to deploy any of this to AWS. Rather you can use this patt
 ***IF YOU RUN THIS IT WILL FAIL***:
 
  `./deploy.sh us-east-1 aws`
+ 
+ Special thanks to Martin Atkins who gave me the solution for running LocalStack and AWS alongside each other. 
+https://stackoverflow.com/questions/69727184/terraform-override-provider-for-use-with-localstack
 
 
 
