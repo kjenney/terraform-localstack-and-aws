@@ -1,0 +1,4 @@
+main.tf
+.terraform
+localstack_state
+terraform.tfstate.d

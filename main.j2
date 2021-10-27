@@ -1,0 +1,127 @@
+locals {
+  aws_settings = (
+    var.use_localstack ?
+    {
+      access_key = "fake"
+      secret_key = "fake"
+      backend_type = "local"
+
+      skip_credentials_validation = true
+      skip_metadata_api_check     = true
+      skip_requesting_account_id  = true
+      s3_force_path_style         = true
+
+      override_endpoint = "http://localhost:4566"
+    } :
+    {
+      access_key = null
+      secret_key = null
+      backend_type = "s3"
+
+      skip_credentials_validation = null
+      skip_metadata_api_check     = null
+      skip_requesting_account_id  = null
+      s3_force_path_style         = null
+
+      override_endpoint = null
+    }
+  )
+}
+
+terraform {
+  {% if provider == 'aws' %} backend "s3" {
+    bucket                      = "my-pulumi-state"
+    region                      = "us-east-1"
+    key                         = "shared_resources.tfstate"
+    workspace_key_prefix        = "workspace:"
+  }{% else %}
+  backend "local" {
+    path = "localstack_state/terraform.tfstate"
+  }
+  {% endif %}
+  required_providers {
+    aws = "~> 2.54"
+  }
+  required_version = "~> 0.12.24"
+}
+
+provider "aws" {
+  access_key = local.aws_settings.access_key
+  secret_key = local.aws_settings.secret_key
+
+  skip_credentials_validation = local.aws_settings.skip_credentials_validation
+  skip_metadata_api_check     = local.aws_settings.skip_metadata_api_check
+  skip_requesting_account_id  = local.aws_settings.skip_requesting_account_id
+  s3_force_path_style         = local.aws_settings.s3_force_path_style
+
+  dynamic "endpoints" {
+    for_each = local.aws_settings.override_endpoint[*]
+    content {
+      dynamodb       = endpoints.value
+      lambda         = endpoints.value
+      kinesis        = endpoints.value
+      apigateway     = endpoints.value
+      cloudformation = endpoints.value
+      cloudwatch     = endpoints.value
+      es             = endpoints.value
+      firehose       = endpoints.value
+      iam            = endpoints.value
+      route53        = endpoints.value
+      redshift       = endpoints.value
+      s3             = endpoints.value
+      secretsmanager = endpoints.value
+      ses            = endpoints.value
+      sns            = endpoints.value
+      sqs            = endpoints.value
+      ssm            = endpoints.value
+      stepfunctions  = endpoints.value
+      sts            = endpoints.value
+    }
+  }
+}
+
+resource "aws_s3_bucket" "my-tfstate" {
+  bucket = "my-tfstate"
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    Name        = "my-tfstate"
+    Environment = "${terraform.workspace}"
+    ManagedBy  = "Terraform"
+  }
+}
+
+resource "aws_dynamodb_table" "terraform_state_lock" {
+  name           = "tf-locks"
+  read_capacity  = 0
+  write_capacity = 0
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = {
+    Name        = "tf-locks"
+    Environment = "{terraform.workspace}"
+    ManagedBy  = "Terraform"
+  }
+}
